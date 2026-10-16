@@ -1,5 +1,9 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using RaceDayAPI.Data;
 using RaceDayAPI.Models;
 
@@ -10,10 +14,14 @@ namespace RaceDayAPI.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly RaceDayContext _context;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(RaceDayContext context)
+    public AuthController(
+        RaceDayContext context,
+        IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     [HttpPost("register")]
@@ -76,14 +84,50 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid email or password.");
         }
 
+        var token = GenerateJwtToken(user);
+
         return Ok(new
         {
-            user.Id,
-            user.FirstName,
-            user.LastName,
-            user.Email,
-            user.PhoneNumber,
-            user.Role
+            token,
+            user = new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                user.Email,
+                user.PhoneNumber,
+                user.Role
+            }
         });
+    }
+
+    private string GenerateJwtToken(User user)
+    {
+        var key = _configuration["Jwt:Key"];
+        var issuer = _configuration["Jwt:Issuer"];
+        var audience = _configuration["Jwt:Audience"];
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Email),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
+
+        var securityKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(key!));
+
+        var credentials = new SigningCredentials(
+            securityKey,
+            SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
