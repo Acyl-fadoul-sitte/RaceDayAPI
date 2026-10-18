@@ -24,6 +24,7 @@ public class AuthController : ControllerBase
         _configuration = configuration;
     }
 
+    // POST: api/Auth/register
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
@@ -34,8 +35,26 @@ public class AuthController : ControllerBase
             return BadRequest("Email, password and role are required.");
         }
 
+        // Allow only the two roles required by the assignment.
+        var role = request.Role.Trim();
+
+        if (role.Equals("Organiser", StringComparison.OrdinalIgnoreCase))
+        {
+            role = "Organiser";
+        }
+        else if (role.Equals("Participant", StringComparison.OrdinalIgnoreCase))
+        {
+            role = "Participant";
+        }
+        else
+        {
+            return BadRequest("Role must be Organiser or Participant.");
+        }
+
+        var email = request.Email.Trim();
+
         var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
+            .FirstOrDefaultAsync(u => u.Email == email);
 
         if (existingUser != null)
         {
@@ -46,10 +65,10 @@ public class AuthController : ControllerBase
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Email = request.Email,
+            Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber,
-            Role = request.Role
+            Role = role
         };
 
         _context.Users.Add(user);
@@ -66,6 +85,7 @@ public class AuthController : ControllerBase
         });
     }
 
+    // POST: api/Auth/login
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
@@ -75,11 +95,15 @@ public class AuthController : ControllerBase
             return BadRequest("Email and password are required.");
         }
 
+        var email = request.Email.Trim();
+
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
+            .FirstOrDefaultAsync(u => u.Email == email);
 
         if (user == null ||
-            !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            !BCrypt.Net.BCrypt.Verify(
+                request.Password,
+                user.PasswordHash))
         {
             return Unauthorized("Invalid email or password.");
         }
@@ -107,6 +131,14 @@ public class AuthController : ControllerBase
         var issuer = _configuration["Jwt:Issuer"];
         var audience = _configuration["Jwt:Audience"];
 
+        if (string.IsNullOrWhiteSpace(key) ||
+            string.IsNullOrWhiteSpace(issuer) ||
+            string.IsNullOrWhiteSpace(audience))
+        {
+            throw new InvalidOperationException(
+                "JWT configuration is missing.");
+        }
+
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -115,7 +147,7 @@ public class AuthController : ControllerBase
         };
 
         var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(key!));
+            Encoding.UTF8.GetBytes(key));
 
         var credentials = new SigningCredentials(
             securityKey,

@@ -1,3 +1,5 @@
+
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
@@ -16,7 +18,16 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+  </ItemGroup>
+
+  <!-- Keep the test project and its generated files out of the API project. -->
+  <ItemGroup>
+    <Compile Remove="RaceDayAPI.Tests/**/*.cs" />
+    <Content Remove="RaceDayAPI.Tests/**" />
+    <EmbeddedResource Remove="RaceDayAPI.Tests/**" />
+    <None Remove="RaceDayAPI.Tests/**" />
   </ItemGroup>
 
 </Project>

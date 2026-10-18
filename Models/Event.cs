@@ -1,7 +1,13 @@
+
+
+
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace RaceDayAPI.Models;
 
 public class Event
 {
+    [Column("EventId")]
     public int Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
@@ -14,10 +20,10 @@ public class Event
 
     public string EventType { get; set; } = string.Empty;
 
-    public double DistanceKm { get; set; }
+    [Column("Distance")]
+    public decimal DistanceKm { get; set; }
 
-    public string Status { get; set; } = string.Empty;
-
+    [Column("OrganiserId")]
     public int OrganiserId { get; set; }
 
     public User? Organiser { get; set; }
