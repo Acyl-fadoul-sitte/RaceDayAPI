@@ -86,7 +86,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Temporarily disabled to test HTTP connectivity.
 
 // Authentication must run before authorization.
 app.UseAuthentication();
