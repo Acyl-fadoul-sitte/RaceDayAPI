@@ -1,7 +1,12 @@
+
+
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace RaceDayAPI.Models;
 
 public class Route
 {
+    [Column("RouteId")]
     public int Id { get; set; }
 
     public int EventId { get; set; }
@@ -11,8 +16,6 @@ public class Route
     public string Description { get; set; } = string.Empty;
 
     public double DistanceKm { get; set; }
-
-    public string RouteMapUrl { get; set; } = string.Empty;
 
     public Event? Event { get; set; }
 }

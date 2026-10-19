@@ -1,4 +1,5 @@
 
+
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,10 +36,15 @@ public class EnrolmentsController : ControllerBase
             .Select(e => new
             {
                 e.Id,
-                e.EventId,
-                EventName = e.Event != null ? e.Event.Name : "",
+                EventId = e.Category != null ? e.Category.EventId : 0,
+                EventName = e.Category != null &&
+                            e.Category.Event != null
+                    ? e.Category.Event.Name
+                    : "",
                 e.CategoryId,
-                CategoryName = e.Category != null ? e.Category.Name : "",
+                CategoryName = e.Category != null
+                    ? e.Category.Name
+                    : "",
                 e.EnrolmentDate,
                 e.Status
             })
@@ -48,7 +54,7 @@ public class EnrolmentsController : ControllerBase
     }
 
     // POST: api/Enrolments
-    // Participants can enrol themselves in an event and category.
+    // Participants can enrol in an event and category.
     [HttpPost]
     [Authorize(Roles = "Participant")]
     public async Task<IActionResult> CreateEnrolment(
@@ -84,7 +90,8 @@ public class EnrolmentsController : ControllerBase
         var alreadyEnrolled = await _context.Enrolments
             .AnyAsync(e =>
                 e.ParticipantId == participantId &&
-                e.EventId == request.EventId &&
+                e.Category != null &&
+                e.Category.EventId == request.EventId &&
                 e.Status != "Cancelled");
 
         if (alreadyEnrolled)
@@ -103,7 +110,6 @@ public class EnrolmentsController : ControllerBase
         var enrolment = new Enrolment
         {
             ParticipantId = participantId,
-            EventId = request.EventId,
             CategoryId = request.CategoryId,
             EnrolmentDate = DateTime.UtcNow,
             Status = "Active"
@@ -119,7 +125,7 @@ public class EnrolmentsController : ControllerBase
             {
                 enrolment.Id,
                 enrolment.ParticipantId,
-                enrolment.EventId,
+                EventId = category.EventId,
                 enrolment.CategoryId,
                 enrolment.EnrolmentDate,
                 enrolment.Status
@@ -147,7 +153,8 @@ public class EnrolmentsController : ControllerBase
 
         var enrolments = await _context.Enrolments
             .AsNoTracking()
-            .Where(e => e.EventId == eventId)
+            .Where(e => e.Category != null &&
+                        e.Category.EventId == eventId)
             .Select(e => new
             {
                 e.Id,

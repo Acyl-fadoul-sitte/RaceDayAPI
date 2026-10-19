@@ -1,3 +1,4 @@
+
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,9 +27,7 @@ public class ResultsController : ControllerBase
     public async Task<IActionResult> GetMyResults()
     {
         if (!TryGetUserId(out int participantId))
-        {
             return Unauthorized();
-        }
 
         var results = await _context.Results
             .AsNoTracking()
@@ -39,8 +38,9 @@ public class ResultsController : ControllerBase
             {
                 r.Id,
                 r.EnrolmentId,
-                EventName = r.Enrolment!.Event != null
-                    ? r.Enrolment.Event.Name
+                EventName = r.Enrolment!.Category != null &&
+                            r.Enrolment.Category.Event != null
+                    ? r.Enrolment.Category.Event.Name
                     : "",
                 r.FinishTime,
                 r.Position,
@@ -58,29 +58,24 @@ public class ResultsController : ControllerBase
     public async Task<IActionResult> GetEventResults(int eventId)
     {
         if (!TryGetUserId(out int organiserId))
-        {
             return Unauthorized();
-        }
 
         var eventItem = await _context.Events
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == eventId);
 
         if (eventItem == null)
-        {
             return NotFound("Event not found.");
-        }
 
         if (eventItem.OrganiserId != organiserId)
-        {
             return Forbid();
-        }
 
         var results = await _context.Results
             .AsNoTracking()
             .Where(r =>
                 r.Enrolment != null &&
-                r.Enrolment.EventId == eventId)
+                r.Enrolment.Category != null &&
+                r.Enrolment.Category.EventId == eventId)
             .Select(r => new
             {
                 r.Id,
@@ -99,8 +94,7 @@ public class ResultsController : ControllerBase
     }
 
     // POST: api/Results/enrolment/5
-    // Organisers can record a result for an enrolment
-    // belonging to one of their own events.
+    // Organisers can record results for enrolments in their own events.
     [HttpPost("enrolment/{enrolmentId:int}")]
     [Authorize(Roles = "Organiser")]
     public async Task<IActionResult> CreateResult(
@@ -110,38 +104,34 @@ public class ResultsController : ControllerBase
         var error = ValidateResult(request);
 
         if (error != null)
-        {
             return BadRequest(error);
-        }
 
         if (!TryGetUserId(out int organiserId))
-        {
             return Unauthorized();
-        }
 
         var enrolment = await _context.Enrolments
-            .Include(e => e.Event)
+            .Include(e => e.Category)
+                .ThenInclude(c => c!.Event)
             .FirstOrDefaultAsync(e => e.Id == enrolmentId);
 
         if (enrolment == null)
-        {
             return NotFound("Enrolment not found.");
-        }
 
-        if (enrolment.Event == null ||
-            enrolment.Event.OrganiserId != organiserId)
-        {
+        var eventItem = enrolment.Category?.Event;
+
+        if (eventItem == null)
+            return BadRequest(
+                "The event associated with this enrolment could not be found.");
+
+        if (eventItem.OrganiserId != organiserId)
             return Forbid();
-        }
 
         var existingResult = await _context.Results
             .AnyAsync(r => r.EnrolmentId == enrolmentId);
 
         if (existingResult)
-        {
             return Conflict(
                 "A result already exists for this enrolment. Use the update endpoint.");
-        }
 
         var result = new Result
         {
@@ -156,11 +146,12 @@ public class ResultsController : ControllerBase
 
         return CreatedAtAction(
             nameof(GetEventResults),
-            new { eventId = enrolment.EventId },
+            new { eventId = eventItem.Id },
             new
             {
                 result.Id,
                 result.EnrolmentId,
+                EventId = eventItem.Id,
                 result.FinishTime,
                 result.Position,
                 result.ResultStatus
@@ -178,30 +169,28 @@ public class ResultsController : ControllerBase
         var error = ValidateResult(request);
 
         if (error != null)
-        {
             return BadRequest(error);
-        }
 
         if (!TryGetUserId(out int organiserId))
-        {
             return Unauthorized();
-        }
 
         var result = await _context.Results
             .Include(r => r.Enrolment)
-                .ThenInclude(e => e!.Event)
+                .ThenInclude(e => e!.Category)
+                    .ThenInclude(c => c!.Event)
             .FirstOrDefaultAsync(r => r.Id == id);
 
         if (result == null)
-        {
             return NotFound("Result not found.");
-        }
 
-        if (result.Enrolment?.Event == null ||
-            result.Enrolment.Event.OrganiserId != organiserId)
-        {
+        var eventItem = result.Enrolment?.Category?.Event;
+
+        if (eventItem == null)
+            return BadRequest(
+                "The event associated with this result could not be found.");
+
+        if (eventItem.OrganiserId != organiserId)
             return Forbid();
-        }
 
         result.FinishTime = request.FinishTime;
         result.Position = request.Position;
@@ -223,9 +212,7 @@ public class ResultsController : ControllerBase
     private static string? ValidateResult(ResultRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.ResultStatus))
-        {
             return "Result status is required.";
-        }
 
         var status = request.ResultStatus.Trim();
 
@@ -239,14 +226,10 @@ public class ResultsController : ControllerBase
         if (status.Equals("Finished", StringComparison.OrdinalIgnoreCase))
         {
             if (request.FinishTime <= TimeSpan.Zero)
-            {
                 return "Finish time must be greater than zero.";
-            }
 
             if (request.Position <= 0)
-            {
                 return "Position must be greater than zero.";
-            }
         }
         else if (request.Position < 0)
         {

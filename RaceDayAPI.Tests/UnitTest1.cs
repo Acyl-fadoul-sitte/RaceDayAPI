@@ -619,7 +619,7 @@ public class UnitTest1
             var saved = await context.Enrolments.SingleAsync();
 
             Assert.Equal(2, saved.ParticipantId);
-            Assert.Equal(10, saved.EventId);
+            Assert.Equal(10, context.Categories.Single(c => c.Id == saved.CategoryId).EventId);
             Assert.Equal(20, saved.CategoryId);
             Assert.Equal("Active", saved.Status);
         }
@@ -744,15 +744,13 @@ public class UnitTest1
             });
 
             context.Enrolments.Add(new Enrolment
-            {
-                Id = 30,
-                ParticipantId = 2,
-                EventId = 10,
-                CategoryId = 20,
-                EnrolmentDate = DateTime.UtcNow,
-                Status = "Active"
-            });
-
+{
+    Id = 30,
+    ParticipantId = 2,
+    CategoryId = 20,
+    EnrolmentDate = DateTime.UtcNow,
+    Status = "Active"
+});
             await context.SaveChangesAsync();
 
             var result = await controller.CreateEnrolment(
@@ -960,16 +958,28 @@ public class UnitTest1
 
             context.Events.Add(eventItem);
 
-            context.Enrolments.Add(new Enrolment
-            {
-                Id = 30,
-                ParticipantId = 2,
-                EventId = 10,
-                CategoryId = 20,
-                EnrolmentDate = DateTime.UtcNow,
-                Status = "Active",
-                Event = eventItem
-            });
+            var category = new Category
+{
+    Id = 20,
+    EventId = 10,
+    Name = "10km Race",
+    Description = "10km category",
+    EntryFee = 100,
+    MaxParticipants = 100,
+    Event = eventItem
+};
+
+context.Categories.Add(category);
+
+context.Enrolments.Add(new Enrolment
+{
+    Id = 30,
+    ParticipantId = 2,
+    CategoryId = 20,
+    EnrolmentDate = DateTime.UtcNow,
+    Status = "Active",
+    Category = category
+});
 
             await context.SaveChangesAsync();
 
@@ -1074,28 +1084,43 @@ public class UnitTest1
 
             context.Events.Add(eventItem);
 
-            var enrolment = new Enrolment
-            {
-                Id = 30,
-                ParticipantId = 2,
-                EventId = 10,
-                CategoryId = 20,
-                EnrolmentDate = DateTime.UtcNow,
-                Status = "Active",
-                Event = eventItem
-            };
+            var category = new Category
+{
+    Id = 20,
+    EventId = 10,
+    Name = "10km Race",
+    Description = "10km category",
+    EntryFee = 100,
+    MaxParticipants = 100,
+    Event = eventItem
+};
 
-            context.Enrolments.Add(enrolment);
+context.Categories.Add(category);
 
-            context.Results.Add(new Result
-            {
-                Id = 40,
-                EnrolmentId = 30,
-                FinishTime = TimeSpan.FromMinutes(45),
-                Position = 1,
-                ResultStatus = "Finished",
-                Enrolment = enrolment
-            });
+var enrolment = new Enrolment
+{
+    Id = 30,
+    ParticipantId = 2,
+    CategoryId = 20,
+    EnrolmentDate = DateTime.UtcNow,
+    Status = "Active",
+    Category = category
+};
+
+context.Enrolments.Add(enrolment);
+
+context.Results.Add(new Result
+{
+    Id = 40,
+    EnrolmentId = 30,
+    FinishTime = TimeSpan.FromMinutes(45),
+    Position = 1,
+    ResultStatus = "Finished",
+    Enrolment = enrolment
+});
+           
+
+            
 
             await context.SaveChangesAsync();
 
@@ -1118,57 +1143,69 @@ public class UnitTest1
     }
 
     // TEST 22: An organiser cannot record a result for another
-    // organiser's event.
-    [Fact]
-    public async Task CreateResult_WhenEventBelongsToAnotherOrganiser_ReturnsForbidden()
+// organiser's event.
+[Fact]
+public async Task CreateResult_WhenEventBelongsToAnotherOrganiser_ReturnsForbidden()
+{
+    var (context, controller) =
+        CreateResultsController(1, "Organiser");
+
+    try
     {
-        var (context, controller) =
-            CreateResultsController(1, "Organiser");
-
-        try
+        var eventItem = new RaceDayAPI.Models.Event
         {
-            var eventItem = new RaceDayAPI.Models.Event
-            {
-                Id = 10,
-                Name = "Another Organiser's Race",
-                Description = "A race owned by another organiser",
-                EventDate = DateTime.UtcNow.Date.AddDays(30),
-                Location = "Pretoria",
-                EventType = "Running",
-                DistanceKm = 10,
-                OrganiserId = 2
-            };
+            Id = 10,
+            Name = "Another Organiser's Race",
+            Description = "A race owned by another organiser",
+            EventDate = DateTime.UtcNow.Date.AddDays(30),
+            Location = "Pretoria",
+            EventType = "Running",
+            DistanceKm = 10,
+            OrganiserId = 2
+        };
 
-            context.Events.Add(eventItem);
+        context.Events.Add(eventItem);
 
-            context.Enrolments.Add(new Enrolment
+        var category = new Category
+        {
+            Id = 20,
+            EventId = 10,
+            Name = "10km Race",
+            Description = "10km category",
+            EntryFee = 100,
+            MaxParticipants = 100,
+            Event = eventItem
+        };
+
+        context.Categories.Add(category);
+
+        context.Enrolments.Add(new Enrolment
+        {
+            Id = 30,
+            ParticipantId = 3,
+            CategoryId = 20,
+            EnrolmentDate = DateTime.UtcNow,
+            Status = "Active",
+            Category = category
+        });
+
+        await context.SaveChangesAsync();
+
+        var result = await controller.CreateResult(
+            30,
+            new ResultRequest
             {
-                Id = 30,
-                ParticipantId = 3,
-                EventId = 10,
-                CategoryId = 20,
-                EnrolmentDate = DateTime.UtcNow,
-                Status = "Active",
-                Event = eventItem
+                FinishTime = TimeSpan.FromMinutes(45),
+                Position = 1,
+                ResultStatus = "Finished"
             });
 
-            await context.SaveChangesAsync();
-
-            var result = await controller.CreateResult(
-                30,
-                new ResultRequest
-                {
-                    FinishTime = TimeSpan.FromMinutes(45),
-                    Position = 1,
-                    ResultStatus = "Finished"
-                });
-
-            Assert.IsType<ForbidResult>(result);
-            Assert.Empty(await context.Results.ToListAsync());
-        }
-        finally
-        {
-            await context.DisposeAsync();
-        }
+        Assert.IsType<ForbidResult>(result);
+        Assert.Empty(await context.Results.ToListAsync());
     }
+    finally
+    {
+        await context.DisposeAsync();
+    }
+}
 }

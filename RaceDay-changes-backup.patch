@@ -1,0 +1,709 @@
+diff --git a/Controllers/EnrolmentsController.cs b/Controllers/EnrolmentsController.cs
+index 90fc9ed..9ea3053 100644
+--- a/Controllers/EnrolmentsController.cs
++++ b/Controllers/EnrolmentsController.cs
+@@ -1,4 +1,5 @@
+ 
++
+ using System.Security.Claims;
+ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+@@ -35,10 +36,15 @@ public class EnrolmentsController : ControllerBase
+             .Select(e => new
+             {
+                 e.Id,
+-                e.EventId,
+-                EventName = e.Event != null ? e.Event.Name : "",
++                EventId = e.Category != null ? e.Category.EventId : 0,
++                EventName = e.Category != null &&
++                            e.Category.Event != null
++                    ? e.Category.Event.Name
++                    : "",
+                 e.CategoryId,
+-                CategoryName = e.Category != null ? e.Category.Name : "",
++                CategoryName = e.Category != null
++                    ? e.Category.Name
++                    : "",
+                 e.EnrolmentDate,
+                 e.Status
+             })
+@@ -48,7 +54,7 @@ public class EnrolmentsController : ControllerBase
+     }
+ 
+     // POST: api/Enrolments
+-    // Participants can enrol themselves in an event and category.
++    // Participants can enrol in an event and category.
+     [HttpPost]
+     [Authorize(Roles = "Participant")]
+     public async Task<IActionResult> CreateEnrolment(
+@@ -84,7 +90,8 @@ public class EnrolmentsController : ControllerBase
+         var alreadyEnrolled = await _context.Enrolments
+             .AnyAsync(e =>
+                 e.ParticipantId == participantId &&
+-                e.EventId == request.EventId &&
++                e.Category != null &&
++                e.Category.EventId == request.EventId &&
+                 e.Status != "Cancelled");
+ 
+         if (alreadyEnrolled)
+@@ -103,7 +110,6 @@ public class EnrolmentsController : ControllerBase
+         var enrolment = new Enrolment
+         {
+             ParticipantId = participantId,
+-            EventId = request.EventId,
+             CategoryId = request.CategoryId,
+             EnrolmentDate = DateTime.UtcNow,
+             Status = "Active"
+@@ -119,7 +125,7 @@ public class EnrolmentsController : ControllerBase
+             {
+                 enrolment.Id,
+                 enrolment.ParticipantId,
+-                enrolment.EventId,
++                EventId = category.EventId,
+                 enrolment.CategoryId,
+                 enrolment.EnrolmentDate,
+                 enrolment.Status
+@@ -147,7 +153,8 @@ public class EnrolmentsController : ControllerBase
+ 
+         var enrolments = await _context.Enrolments
+             .AsNoTracking()
+-            .Where(e => e.EventId == eventId)
++            .Where(e => e.Category != null &&
++                        e.Category.EventId == eventId)
+             .Select(e => new
+             {
+                 e.Id,
+diff --git a/Controllers/ResultsController.cs b/Controllers/ResultsController.cs
+index 4ac64ff..8f71e92 100644
+--- a/Controllers/ResultsController.cs
++++ b/Controllers/ResultsController.cs
+@@ -1,3 +1,4 @@
++
+ using System.Security.Claims;
+ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+@@ -26,9 +27,7 @@ public class ResultsController : ControllerBase
+     public async Task<IActionResult> GetMyResults()
+     {
+         if (!TryGetUserId(out int participantId))
+-        {
+             return Unauthorized();
+-        }
+ 
+         var results = await _context.Results
+             .AsNoTracking()
+@@ -39,8 +38,9 @@ public class ResultsController : ControllerBase
+             {
+                 r.Id,
+                 r.EnrolmentId,
+-                EventName = r.Enrolment!.Event != null
+-                    ? r.Enrolment.Event.Name
++                EventName = r.Enrolment!.Category != null &&
++                            r.Enrolment.Category.Event != null
++                    ? r.Enrolment.Category.Event.Name
+                     : "",
+                 r.FinishTime,
+                 r.Position,
+@@ -58,29 +58,24 @@ public class ResultsController : ControllerBase
+     public async Task<IActionResult> GetEventResults(int eventId)
+     {
+         if (!TryGetUserId(out int organiserId))
+-        {
+             return Unauthorized();
+-        }
+ 
+         var eventItem = await _context.Events
+             .AsNoTracking()
+             .FirstOrDefaultAsync(e => e.Id == eventId);
+ 
+         if (eventItem == null)
+-        {
+             return NotFound("Event not found.");
+-        }
+ 
+         if (eventItem.OrganiserId != organiserId)
+-        {
+             return Forbid();
+-        }
+ 
+         var results = await _context.Results
+             .AsNoTracking()
+             .Where(r =>
+                 r.Enrolment != null &&
+-                r.Enrolment.EventId == eventId)
++                r.Enrolment.Category != null &&
++                r.Enrolment.Category.EventId == eventId)
+             .Select(r => new
+             {
+                 r.Id,
+@@ -99,8 +94,7 @@ public class ResultsController : ControllerBase
+     }
+ 
+     // POST: api/Results/enrolment/5
+-    // Organisers can record a result for an enrolment
+-    // belonging to one of their own events.
++    // Organisers can record results for enrolments in their own events.
+     [HttpPost("enrolment/{enrolmentId:int}")]
+     [Authorize(Roles = "Organiser")]
+     public async Task<IActionResult> CreateResult(
+@@ -110,38 +104,34 @@ public class ResultsController : ControllerBase
+         var error = ValidateResult(request);
+ 
+         if (error != null)
+-        {
+             return BadRequest(error);
+-        }
+ 
+         if (!TryGetUserId(out int organiserId))
+-        {
+             return Unauthorized();
+-        }
+ 
+         var enrolment = await _context.Enrolments
+-            .Include(e => e.Event)
++            .Include(e => e.Category)
++                .ThenInclude(c => c!.Event)
+             .FirstOrDefaultAsync(e => e.Id == enrolmentId);
+ 
+         if (enrolment == null)
+-        {
+             return NotFound("Enrolment not found.");
+-        }
+ 
+-        if (enrolment.Event == null ||
+-            enrolment.Event.OrganiserId != organiserId)
+-        {
++        var eventItem = enrolment.Category?.Event;
++
++        if (eventItem == null)
++            return BadRequest(
++                "The event associated with this enrolment could not be found.");
++
++        if (eventItem.OrganiserId != organiserId)
+             return Forbid();
+-        }
+ 
+         var existingResult = await _context.Results
+             .AnyAsync(r => r.EnrolmentId == enrolmentId);
+ 
+         if (existingResult)
+-        {
+             return Conflict(
+                 "A result already exists for this enrolment. Use the update endpoint.");
+-        }
+ 
+         var result = new Result
+         {
+@@ -156,11 +146,12 @@ public class ResultsController : ControllerBase
+ 
+         return CreatedAtAction(
+             nameof(GetEventResults),
+-            new { eventId = enrolment.EventId },
++            new { eventId = eventItem.Id },
+             new
+             {
+                 result.Id,
+                 result.EnrolmentId,
++                EventId = eventItem.Id,
+                 result.FinishTime,
+                 result.Position,
+                 result.ResultStatus
+@@ -178,30 +169,28 @@ public class ResultsController : ControllerBase
+         var error = ValidateResult(request);
+ 
+         if (error != null)
+-        {
+             return BadRequest(error);
+-        }
+ 
+         if (!TryGetUserId(out int organiserId))
+-        {
+             return Unauthorized();
+-        }
+ 
+         var result = await _context.Results
+             .Include(r => r.Enrolment)
+-                .ThenInclude(e => e!.Event)
++                .ThenInclude(e => e!.Category)
++                    .ThenInclude(c => c!.Event)
+             .FirstOrDefaultAsync(r => r.Id == id);
+ 
+         if (result == null)
+-        {
+             return NotFound("Result not found.");
+-        }
+ 
+-        if (result.Enrolment?.Event == null ||
+-            result.Enrolment.Event.OrganiserId != organiserId)
+-        {
++        var eventItem = result.Enrolment?.Category?.Event;
++
++        if (eventItem == null)
++            return BadRequest(
++                "The event associated with this result could not be found.");
++
++        if (eventItem.OrganiserId != organiserId)
+             return Forbid();
+-        }
+ 
+         result.FinishTime = request.FinishTime;
+         result.Position = request.Position;
+@@ -223,9 +212,7 @@ public class ResultsController : ControllerBase
+     private static string? ValidateResult(ResultRequest request)
+     {
+         if (string.IsNullOrWhiteSpace(request.ResultStatus))
+-        {
+             return "Result status is required.";
+-        }
+ 
+         var status = request.ResultStatus.Trim();
+ 
+@@ -239,14 +226,10 @@ public class ResultsController : ControllerBase
+         if (status.Equals("Finished", StringComparison.OrdinalIgnoreCase))
+         {
+             if (request.FinishTime <= TimeSpan.Zero)
+-            {
+                 return "Finish time must be greater than zero.";
+-            }
+ 
+             if (request.Position <= 0)
+-            {
+                 return "Position must be greater than zero.";
+-            }
+         }
+         else if (request.Position < 0)
+         {
+@@ -273,4 +256,4 @@ public class ResultRequest
+     public int Position { get; set; }
+ 
+     public string ResultStatus { get; set; } = "Finished";
+-}
+\ No newline at end of file
++}
+diff --git a/Models/Category.cs b/Models/Category.cs
+index 957690c..816f8e3 100644
+--- a/Models/Category.cs
++++ b/Models/Category.cs
+@@ -1,7 +1,11 @@
++
++using System.ComponentModel.DataAnnotations.Schema;
++
+ namespace RaceDayAPI.Models;
+ 
+ public class Category
+ {
++    [Column("CategoryId")]
+     public int Id { get; set; }
+ 
+     public int EventId { get; set; }
+@@ -12,7 +16,8 @@ public class Category
+ 
+     public decimal EntryFee { get; set; }
+ 
+-    public int MaxParticipants { get; set; }
++    [Column("MaximumParticipants")]
++public int MaxParticipants { get; set; }
+ 
+     public Event? Event { get; set; }
+-}
+\ No newline at end of file
++}
+diff --git a/Models/Enrolment.cs b/Models/Enrolment.cs
+index 74ebe78..01d3a3d 100644
+--- a/Models/Enrolment.cs
++++ b/Models/Enrolment.cs
+@@ -1,13 +1,17 @@
++
++
++using System.ComponentModel.DataAnnotations.Schema;
++
+ namespace RaceDayAPI.Models;
+ 
++[Table("Enrolments")]
+ public class Enrolment
+ {
++    [Column("EnrolmentId")]
+     public int Id { get; set; }
+ 
+     public int ParticipantId { get; set; }
+ 
+-    public int EventId { get; set; }
+-
+     public int CategoryId { get; set; }
+ 
+     public DateTime EnrolmentDate { get; set; }
+@@ -16,7 +20,6 @@ public class Enrolment
+ 
+     public User? Participant { get; set; }
+ 
+-    public Event? Event { get; set; }
+-
+     public Category? Category { get; set; }
+-}
+\ No newline at end of file
++}
++
+diff --git a/Models/Result.cs b/Models/Result.cs
+index e319f6e..aa83122 100644
+--- a/Models/Result.cs
++++ b/Models/Result.cs
+@@ -1,7 +1,11 @@
++
++using System.ComponentModel.DataAnnotations.Schema;
++
+ namespace RaceDayAPI.Models;
+ 
+ public class Result
+ {
++    [Column("ResultId")]
+     public int Id { get; set; }
+ 
+     public int EnrolmentId { get; set; }
+@@ -10,7 +14,8 @@ public class Result
+ 
+     public int Position { get; set; }
+ 
+-    public string ResultStatus { get; set; } = string.Empty;
++    [Column("Status")]
++public string ResultStatus { get; set; } = string.Empty;
+ 
+     public Enrolment? Enrolment { get; set; }
+-}
+\ No newline at end of file
++}
+diff --git a/Models/Route.cs b/Models/Route.cs
+index 99b4e31..96c903c 100644
+--- a/Models/Route.cs
++++ b/Models/Route.cs
+@@ -1,7 +1,12 @@
++
++
++using System.ComponentModel.DataAnnotations.Schema;
++
+ namespace RaceDayAPI.Models;
+ 
+ public class Route
+ {
++    [Column("RouteId")]
+     public int Id { get; set; }
+ 
+     public int EventId { get; set; }
+@@ -12,7 +17,5 @@ public class Route
+ 
+     public double DistanceKm { get; set; }
+ 
+-    public string RouteMapUrl { get; set; } = string.Empty;
+-
+     public Event? Event { get; set; }
+-}
+\ No newline at end of file
++}
+diff --git a/RaceDayAPI.Tests/UnitTest1.cs b/RaceDayAPI.Tests/UnitTest1.cs
+index c07e5c4..016e38f 100644
+--- a/RaceDayAPI.Tests/UnitTest1.cs
++++ b/RaceDayAPI.Tests/UnitTest1.cs
+@@ -619,7 +619,7 @@ public class UnitTest1
+             var saved = await context.Enrolments.SingleAsync();
+ 
+             Assert.Equal(2, saved.ParticipantId);
+-            Assert.Equal(10, saved.EventId);
++            Assert.Equal(10, context.Categories.Single(c => c.Id == saved.CategoryId).EventId);
+             Assert.Equal(20, saved.CategoryId);
+             Assert.Equal("Active", saved.Status);
+         }
+@@ -744,15 +744,13 @@ public class UnitTest1
+             });
+ 
+             context.Enrolments.Add(new Enrolment
+-            {
+-                Id = 30,
+-                ParticipantId = 2,
+-                EventId = 10,
+-                CategoryId = 20,
+-                EnrolmentDate = DateTime.UtcNow,
+-                Status = "Active"
+-            });
+-
++{
++    Id = 30,
++    ParticipantId = 2,
++    CategoryId = 20,
++    EnrolmentDate = DateTime.UtcNow,
++    Status = "Active"
++});
+             await context.SaveChangesAsync();
+ 
+             var result = await controller.CreateEnrolment(
+@@ -960,16 +958,28 @@ public class UnitTest1
+ 
+             context.Events.Add(eventItem);
+ 
+-            context.Enrolments.Add(new Enrolment
+-            {
+-                Id = 30,
+-                ParticipantId = 2,
+-                EventId = 10,
+-                CategoryId = 20,
+-                EnrolmentDate = DateTime.UtcNow,
+-                Status = "Active",
+-                Event = eventItem
+-            });
++            var category = new Category
++{
++    Id = 20,
++    EventId = 10,
++    Name = "10km Race",
++    Description = "10km category",
++    EntryFee = 100,
++    MaxParticipants = 100,
++    Event = eventItem
++};
++
++context.Categories.Add(category);
++
++context.Enrolments.Add(new Enrolment
++{
++    Id = 30,
++    ParticipantId = 2,
++    CategoryId = 20,
++    EnrolmentDate = DateTime.UtcNow,
++    Status = "Active",
++    Category = category
++});
+ 
+             await context.SaveChangesAsync();
+ 
+@@ -1074,28 +1084,43 @@ public class UnitTest1
+ 
+             context.Events.Add(eventItem);
+ 
+-            var enrolment = new Enrolment
+-            {
+-                Id = 30,
+-                ParticipantId = 2,
+-                EventId = 10,
+-                CategoryId = 20,
+-                EnrolmentDate = DateTime.UtcNow,
+-                Status = "Active",
+-                Event = eventItem
+-            };
++            var category = new Category
++{
++    Id = 20,
++    EventId = 10,
++    Name = "10km Race",
++    Description = "10km category",
++    EntryFee = 100,
++    MaxParticipants = 100,
++    Event = eventItem
++};
++
++context.Categories.Add(category);
++
++var enrolment = new Enrolment
++{
++    Id = 30,
++    ParticipantId = 2,
++    CategoryId = 20,
++    EnrolmentDate = DateTime.UtcNow,
++    Status = "Active",
++    Category = category
++};
+ 
+-            context.Enrolments.Add(enrolment);
++context.Enrolments.Add(enrolment);
+ 
+-            context.Results.Add(new Result
+-            {
+-                Id = 40,
+-                EnrolmentId = 30,
+-                FinishTime = TimeSpan.FromMinutes(45),
+-                Position = 1,
+-                ResultStatus = "Finished",
+-                Enrolment = enrolment
+-            });
++context.Results.Add(new Result
++{
++    Id = 40,
++    EnrolmentId = 30,
++    FinishTime = TimeSpan.FromMinutes(45),
++    Position = 1,
++    ResultStatus = "Finished",
++    Enrolment = enrolment
++});
++           
++
++            
+ 
+             await context.SaveChangesAsync();
+ 
+@@ -1118,57 +1143,69 @@ public class UnitTest1
+     }
+ 
+     // TEST 22: An organiser cannot record a result for another
+-    // organiser's event.
+-    [Fact]
+-    public async Task CreateResult_WhenEventBelongsToAnotherOrganiser_ReturnsForbidden()
++// organiser's event.
++[Fact]
++public async Task CreateResult_WhenEventBelongsToAnotherOrganiser_ReturnsForbidden()
++{
++    var (context, controller) =
++        CreateResultsController(1, "Organiser");
++
++    try
+     {
+-        var (context, controller) =
+-            CreateResultsController(1, "Organiser");
++        var eventItem = new RaceDayAPI.Models.Event
++        {
++            Id = 10,
++            Name = "Another Organiser's Race",
++            Description = "A race owned by another organiser",
++            EventDate = DateTime.UtcNow.Date.AddDays(30),
++            Location = "Pretoria",
++            EventType = "Running",
++            DistanceKm = 10,
++            OrganiserId = 2
++        };
+ 
+-        try
++        context.Events.Add(eventItem);
++
++        var category = new Category
+         {
+-            var eventItem = new RaceDayAPI.Models.Event
+-            {
+-                Id = 10,
+-                Name = "Another Organiser's Race",
+-                Description = "A race owned by another organiser",
+-                EventDate = DateTime.UtcNow.Date.AddDays(30),
+-                Location = "Pretoria",
+-                EventType = "Running",
+-                DistanceKm = 10,
+-                OrganiserId = 2
+-            };
++            Id = 20,
++            EventId = 10,
++            Name = "10km Race",
++            Description = "10km category",
++            EntryFee = 100,
++            MaxParticipants = 100,
++            Event = eventItem
++        };
+ 
+-            context.Events.Add(eventItem);
++        context.Categories.Add(category);
+ 
+-            context.Enrolments.Add(new Enrolment
++        context.Enrolments.Add(new Enrolment
++        {
++            Id = 30,
++            ParticipantId = 3,
++            CategoryId = 20,
++            EnrolmentDate = DateTime.UtcNow,
++            Status = "Active",
++            Category = category
++        });
++
++        await context.SaveChangesAsync();
++
++        var result = await controller.CreateResult(
++            30,
++            new ResultRequest
+             {
+-                Id = 30,
+-                ParticipantId = 3,
+-                EventId = 10,
+-                CategoryId = 20,
+-                EnrolmentDate = DateTime.UtcNow,
+-                Status = "Active",
+-                Event = eventItem
++                FinishTime = TimeSpan.FromMinutes(45),
++                Position = 1,
++                ResultStatus = "Finished"
+             });
+ 
+-            await context.SaveChangesAsync();
+-
+-            var result = await controller.CreateResult(
+-                30,
+-                new ResultRequest
+-                {
+-                    FinishTime = TimeSpan.FromMinutes(45),
+-                    Position = 1,
+-                    ResultStatus = "Finished"
+-                });
+-
+-            Assert.IsType<ForbidResult>(result);
+-            Assert.Empty(await context.Results.ToListAsync());
+-        }
+-        finally
+-        {
+-            await context.DisposeAsync();
+-        }
++        Assert.IsType<ForbidResult>(result);
++        Assert.Empty(await context.Results.ToListAsync());
++    }
++    finally
++    {
++        await context.DisposeAsync();
+     }
+ }
++}
+diff --git a/data/RaceDayContext.cs b/data/RaceDayContext.cs
+index 12d7442..2e4d7f6 100644
+--- a/data/RaceDayContext.cs
++++ b/data/RaceDayContext.cs
+@@ -1,3 +1,6 @@
++
++
++
+ using Microsoft.EntityFrameworkCore;
+ using RaceDayAPI.Models;
+ 
+@@ -21,33 +24,36 @@ public class RaceDayContext : DbContext
+     public DbSet<Result> Results { get; set; }
+ 
+     public DbSet<RaceDayAPI.Models.Route> Routes { get; set; }
+-
++    
+     public DbSet<Weather> Weather { get; set; }
+ 
++
+     protected override void OnModelCreating(ModelBuilder modelBuilder)
+     {
+         base.OnModelCreating(modelBuilder);
+ 
++        // Configure category entry fee precision
+         modelBuilder.Entity<Category>()
+             .Property(c => c.EntryFee)
+             .HasPrecision(18, 2);
+ 
+-        modelBuilder.Entity<Enrolment>()
+-            .HasOne(e => e.Event)
+-            .WithMany()
+-            .HasForeignKey(e => e.EventId)
+-            .OnDelete(DeleteBehavior.NoAction);
++        // Configure event distance precision
++        modelBuilder.Entity<Event>()
++            .Property(e => e.DistanceKm)
++            .HasPrecision(10, 2);
+ 
++        // Configure enrolment-to-category relationship
+         modelBuilder.Entity<Enrolment>()
+             .HasOne(e => e.Category)
+             .WithMany()
+             .HasForeignKey(e => e.CategoryId)
+             .OnDelete(DeleteBehavior.NoAction);
+ 
++        // Configure enrolment-to-participant relationship
+         modelBuilder.Entity<Enrolment>()
+             .HasOne(e => e.Participant)
+             .WithMany()
+             .HasForeignKey(e => e.ParticipantId)
+             .OnDelete(DeleteBehavior.NoAction);
+     }
+-}
+\ No newline at end of file
++}

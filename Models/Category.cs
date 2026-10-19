@@ -1,7 +1,11 @@
+
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace RaceDayAPI.Models;
 
 public class Category
 {
+    [Column("CategoryId")]
     public int Id { get; set; }
 
     public int EventId { get; set; }
@@ -12,7 +16,8 @@ public class Category
 
     public decimal EntryFee { get; set; }
 
-    public int MaxParticipants { get; set; }
+    [Column("MaximumParticipants")]
+public int MaxParticipants { get; set; }
 
     public Event? Event { get; set; }
 }

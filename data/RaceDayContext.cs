@@ -1,3 +1,6 @@
+
+
+
 using Microsoft.EntityFrameworkCore;
 using RaceDayAPI.Models;
 
@@ -21,29 +24,32 @@ public class RaceDayContext : DbContext
     public DbSet<Result> Results { get; set; }
 
     public DbSet<RaceDayAPI.Models.Route> Routes { get; set; }
-
+    
     public DbSet<Weather> Weather { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        // Configure category entry fee precision
         modelBuilder.Entity<Category>()
             .Property(c => c.EntryFee)
             .HasPrecision(18, 2);
 
-        modelBuilder.Entity<Enrolment>()
-            .HasOne(e => e.Event)
-            .WithMany()
-            .HasForeignKey(e => e.EventId)
-            .OnDelete(DeleteBehavior.NoAction);
+        // Configure event distance precision
+        modelBuilder.Entity<Event>()
+            .Property(e => e.DistanceKm)
+            .HasPrecision(10, 2);
 
+        // Configure enrolment-to-category relationship
         modelBuilder.Entity<Enrolment>()
             .HasOne(e => e.Category)
             .WithMany()
             .HasForeignKey(e => e.CategoryId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Configure enrolment-to-participant relationship
         modelBuilder.Entity<Enrolment>()
             .HasOne(e => e.Participant)
             .WithMany()
