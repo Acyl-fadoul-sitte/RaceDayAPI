@@ -278,9 +278,10 @@ dotnet build .\RaceDayAPI.csproj
 ```powershell
 dotnet run --project .\RaceDayAPI.csproj
 ```
+9. Open your browser and navigate to:
+   http://localhost:5142/swagger
 
-9. Open the API address displayed in the terminal.
-
+   Note: This address is for local development. The port may differ on another computer.
 If Swagger is enabled for the current environment, open the Swagger UI address provided by the application to inspect and test the endpoints.
 
 ## 10. Unit Testing
