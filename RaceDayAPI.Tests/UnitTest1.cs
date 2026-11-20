@@ -621,7 +621,7 @@ public class UnitTest1
             Assert.Equal(2, saved.ParticipantId);
             Assert.Equal(10, context.Categories.Single(c => c.Id == saved.CategoryId).EventId);
             Assert.Equal(20, saved.CategoryId);
-            Assert.Equal("Active", saved.Status);
+            Assert.Equal("Registered", saved.Status);
         }
         finally
         {
