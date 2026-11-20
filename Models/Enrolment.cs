@@ -1,16 +1,12 @@
-
-
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace RaceDayAPI.Models;
 
-[Table("Enrolments")]
 public class Enrolment
 {
-    [Column("EnrolmentId")]
     public int Id { get; set; }
 
     public int ParticipantId { get; set; }
+
+    public int EventId { get; set; }
 
     public int CategoryId { get; set; }
 
@@ -20,6 +16,7 @@ public class Enrolment
 
     public User? Participant { get; set; }
 
+    public Event? Event { get; set; }
+
     public Category? Category { get; set; }
 }
-

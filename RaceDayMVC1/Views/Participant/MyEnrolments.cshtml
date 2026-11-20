@@ -1,0 +1,170 @@
+﻿@model List<RaceDayMVC1.Models.EnrolmentViewModel>
+
+@{
+    ViewData["Title"] = "My Enrolments";
+}
+
+<div class="container mt-4">
+
+    <!-- Back to Dashboard -->
+    <a asp-controller="Participant"
+       asp-action="Index"
+       class="btn btn-outline-primary mb-3">
+        Back to Dashboard
+    </a>
+
+    <!-- Page Header -->
+    <div class="p-4 mb-4 text-white rounded-3"
+         style="background: linear-gradient(120deg, #172554, #2563eb);">
+
+        <h1 class="fw-bold">My Enrolments</h1>
+
+        <p class="mb-0">
+            View your registered races and check your enrolment status.
+        </p>
+
+    </div>
+
+    <h3 class="fw-bold mb-3">My Registered Events</h3>
+
+    <!-- Success and Error Messages -->
+    @if (TempData["EnrolmentMessage"] != null)
+    {
+        <div class="alert alert-info alert-dismissible fade show"
+             role="alert">
+
+            @TempData["EnrolmentMessage"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+
+        </div>
+    }
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="alert alert-danger">
+            @ViewBag.ErrorMessage
+        </div>
+    }
+
+    <!-- Empty Enrolments -->
+    @if (Model == null || !Model.Any())
+    {
+        <div class="alert alert-info">
+            You have not enrolled in any events yet.
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            @foreach (var enrolment in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+
+                    <div class="card shadow-sm h-100">
+
+                        <div class="card-body">
+
+                            <!-- Event Name -->
+                            <h5 class="fw-bold mb-3">
+                                @enrolment.EventName
+                            </h5>
+
+                            <!-- Category -->
+                            <p>
+                                <strong>Category:</strong>
+                                @enrolment.CategoryName
+                            </p>
+
+                            <!-- Enrolment Date -->
+                            <p>
+                                <strong>Enrolment Date:</strong>
+                                @enrolment.EnrolmentDate.ToString("dd MMMM yyyy")
+                            </p>
+
+                            <!-- Enrolment Status -->
+                            <p>
+                                <strong>Status:</strong>
+
+                                @if (enrolment.Status == "Registered" ||
+                                     enrolment.Status == "Confirmed")
+                                {
+                                    <span class="badge bg-success">
+                                        @enrolment.Status
+                                    </span>
+                                }
+                                else if (enrolment.Status == "Cancelled")
+                                {
+                                    <span class="badge bg-danger">
+                                        Cancelled
+                                    </span>
+                                }
+                                else if (enrolment.Status == "Completed")
+                                {
+                                    <span class="badge bg-primary">
+                                        Completed
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        @enrolment.Status
+                                    </span>
+                                }
+                            </p>
+
+                            <hr />
+
+                            <!-- Cancel Enrolment Button -->
+                            @if (enrolment.Status != "Cancelled" &&
+                                 enrolment.Status != "Completed")
+                            {
+                                <form asp-controller="Participant"
+                                      asp-action="CancelEnrolment"
+                                      method="post"
+                                      onsubmit="return confirm('Are you sure you want to cancel this enrolment?');">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@enrolment.Id" />
+
+                                    <button type="submit"
+                                            class="btn btn-danger w-100">
+
+                                        Cancel Enrolment
+
+                                    </button>
+
+                                </form>
+                            }
+                            else if (enrolment.Status == "Cancelled")
+                            {
+                                <div class="alert alert-danger mb-0">
+                                    This enrolment has been cancelled.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-primary mb-0">
+                                    This event has been completed.
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>

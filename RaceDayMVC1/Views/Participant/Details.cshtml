@@ -1,0 +1,130 @@
+﻿@model RaceDayMVC1.Models.EventViewModel
+
+@{
+    ViewData["Title"] = "Event Details";
+    var categories = ViewBag.Categories as List<RaceDayMVC1.Models.CategoryViewModel>;
+}
+
+<div class="container mt-4">
+
+    <a asp-action="Index" class="btn btn-outline-primary mb-3">
+        Back to Events
+    </a>
+
+    @if (TempData["EnrolmentMessage"] != null)
+    {
+        <div class="alert alert-info">
+            @TempData["EnrolmentMessage"]
+        </div>
+    }
+
+    <!-- Event Information -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body p-4">
+
+            <h2 class="fw-bold mb-3">@Model.Name</h2>
+
+            <p class="text-muted">@Model.Description</p>
+
+            <hr />
+
+            <p>
+                <strong>Event Date:</strong>
+                @Model.EventDate.ToString("dd MMMM yyyy")
+            </p>
+
+            <p>
+                <strong>Location:</strong>
+                @Model.Location
+            </p>
+
+            <p>
+                <strong>Event Type:</strong>
+                @Model.EventType
+            </p>
+
+            <p>
+                <strong>Distance:</strong>
+                @Model.DistanceKm km
+            </p>
+
+        </div>
+    </div>
+
+    <!-- Available Categories -->
+    <h3 class="fw-bold mb-3">Available Categories</h3>
+
+    @if (!string.IsNullOrEmpty(ViewBag.ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @ViewBag.ErrorMessage
+        </div>
+    }
+    else if (categories == null || !categories.Any())
+    {
+        <div class="alert alert-info">
+            No categories are currently available for this event.
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            @foreach (var category in categories)
+            {
+                <div class="col-md-6 col-lg-4">
+
+                    <div class="card shadow-sm h-100">
+
+                        <div class="card-body">
+
+                            <h5 class="fw-bold">@category.Name</h5>
+
+                            <p class="text-muted">
+                                @category.Description
+                            </p>
+
+                            <p>
+                                <strong>Entry Fee:</strong>
+                                R @category.EntryFee.ToString("N2")
+                            </p>
+
+                            <p>
+                                <strong>Maximum Participants:</strong>
+                                @category.MaxParticipants
+                            </p>
+
+                            <form asp-controller="Participant"
+                                  asp-action="Enrol"
+                                  method="post">
+
+                                @Html.AntiForgeryToken()
+
+                                <input type="hidden"
+                                       name="EventId"
+                                       value="@Model.Id" />
+
+                                <input type="hidden"
+                                       name="CategoryId"
+                                       value="@category.Id" />
+
+                                <button type="submit"
+                                        class="btn btn-success w-100">
+                                    <i class="bi bi-check-circle"></i>
+                                    Enrol Now
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>

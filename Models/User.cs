@@ -1,11 +1,7 @@
-
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace RaceDayAPI.Models;
 
 public class User
 {
-    [Column("UserId")]
     public int Id { get; set; }
 
     public string FirstName { get; set; } = string.Empty;

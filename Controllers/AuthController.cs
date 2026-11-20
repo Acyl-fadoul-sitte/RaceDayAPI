@@ -1,3 +1,4 @@
+
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -24,7 +25,6 @@ public class AuthController : ControllerBase
         _configuration = configuration;
     }
 
-    // POST: api/Auth/register
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
@@ -35,26 +35,15 @@ public class AuthController : ControllerBase
             return BadRequest("Email, password and role are required.");
         }
 
-        // Allow only the two roles required by the assignment.
-        var role = request.Role.Trim();
+        var allowedRoles = new[] { "Participant", "Organiser" };
 
-        if (role.Equals("Organiser", StringComparison.OrdinalIgnoreCase))
+        if (!allowedRoles.Contains(request.Role, StringComparer.OrdinalIgnoreCase))
         {
-            role = "Organiser";
+            return BadRequest("Invalid role. Allowed roles are Participant and Organiser.");
         }
-        else if (role.Equals("Participant", StringComparison.OrdinalIgnoreCase))
-        {
-            role = "Participant";
-        }
-        else
-        {
-            return BadRequest("Role must be Organiser or Participant.");
-        }
-
-        var email = request.Email.Trim();
 
         var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (existingUser != null)
         {
@@ -65,10 +54,11 @@ public class AuthController : ControllerBase
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Email = email,
+            Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber,
-            Role = role
+            Role = allowedRoles.First(r =>
+                r.Equals(request.Role, StringComparison.OrdinalIgnoreCase))
         };
 
         _context.Users.Add(user);
@@ -85,7 +75,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    // POST: api/Auth/login
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
@@ -95,71 +84,53 @@ public class AuthController : ControllerBase
             return BadRequest("Email and password are required.");
         }
 
-        var email = request.Email.Trim();
-
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null ||
-            !BCrypt.Net.BCrypt.Verify(
-                request.Password,
-                user.PasswordHash))
+            !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             return Unauthorized("Invalid email or password.");
         }
 
-        var token = GenerateJwtToken(user);
+        var jwtKey = _configuration["Jwt:Key"];
+        var jwtIssuer = _configuration["Jwt:Issuer"];
+        var jwtAudience = _configuration["Jwt:Audience"];
 
-        return Ok(new
+        if (string.IsNullOrWhiteSpace(jwtKey) ||
+            string.IsNullOrWhiteSpace(jwtIssuer) ||
+            string.IsNullOrWhiteSpace(jwtAudience))
         {
-            token,
-            user = new
-            {
-                user.Id,
-                user.FirstName,
-                user.LastName,
-                user.Email,
-                user.PhoneNumber,
-                user.Role
-            }
-        });
-    }
-
-    private string GenerateJwtToken(User user)
-    {
-        var key = _configuration["Jwt:Key"];
-        var issuer = _configuration["Jwt:Issuer"];
-        var audience = _configuration["Jwt:Audience"];
-
-        if (string.IsNullOrWhiteSpace(key) ||
-            string.IsNullOrWhiteSpace(issuer) ||
-            string.IsNullOrWhiteSpace(audience))
-        {
-            throw new InvalidOperationException(
-                "JWT configuration is missing.");
+            return StatusCode(500, "JWT configuration is missing.");
         }
 
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Email),
+            new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role)
         };
 
-        var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(key));
-
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(
-            securityKey,
-            SecurityAlgorithms.HmacSha256);
+            key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
+            issuer: jwtIssuer,
+            audience: jwtAudience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
+            expires: DateTime.UtcNow.AddHours(2),
             signingCredentials: credentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return Ok(new
+        {
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.PhoneNumber,
+            user.Role,
+            token = new JwtSecurityTokenHandler().WriteToken(token)
+        });
     }
 }

@@ -1,0 +1,146 @@
+﻿@{
+    ViewData["Title"] = "Organiser Dashboard";
+}
+
+<div class="container mt-4">
+
+    <!-- Welcome Section -->
+    <div class="p-4 mb-4 text-white rounded-3"
+         style="background: linear-gradient(120deg, #172554, #2563eb);">
+
+        <h1 class="fw-bold">Welcome, Organiser!</h1>
+
+        <p class="mb-0">
+            Manage your RaceDay events, participants and race results
+            from one place.
+        </p>
+
+    </div>
+
+    <h3 class="fw-bold mb-3">Organiser Dashboard</h3>
+
+    <div class="row g-4">
+
+        <!-- Manage Events -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">Manage Events</h5>
+
+                    <p class="card-text">
+                        Create, update and manage your sporting events.
+                    </p>
+
+                    <a asp-controller="Organiser"
+                       asp-action="MyEvents"
+                       class="btn btn-primary">
+                        Manage Events
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Categories -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">Manage Categories</h5>
+
+                    <p class="card-text">
+                        Create, update and manage categories
+                        for your sporting events.
+                    </p>
+
+                    <a asp-controller="Organiser"
+                       asp-action="ManageCategories"
+                       class="btn btn-primary">
+                        Manage Categories
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- View Enrolments -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">View Enrolments</h5>
+
+                    <p class="card-text">
+                        View participants registered for your events.
+                    </p>
+
+                    <a asp-controller="Organiser"
+                       asp-action="MyEvents"
+                       class="btn btn-primary">
+                        View Enrolments
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Results -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">Manage Results</h5>
+
+                    <p class="card-text">
+                        Enter and publish participant race results.
+                    </p>
+
+                    <a asp-controller="Organiser"
+                       asp-action="MyEvents"
+                       class="btn btn-primary">
+                        Manage Results
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Banners -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">Event Banners</h5>
+
+                    <p class="card-text">
+                        Add banners to promote your sporting events.
+                    </p>
+
+                    <a href="#"
+                       class="btn btn-primary">
+                        Manage Banners
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Information Section -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+
+            <h5 class="fw-bold">RaceDay Event Management</h5>
+
+            <p class="text-muted mb-0">
+                Plan events, manage participants and deliver
+                successful races.
+            </p>
+
+        </div>
+    </div>
+
+</div>
+

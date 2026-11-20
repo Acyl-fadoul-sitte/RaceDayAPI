@@ -131,7 +131,7 @@ public class EventsController : ControllerBase
             EventDate = request.EventDate.Date,
             Location = request.Location.Trim(),
             EventType = NormalizeEventType(request.EventType),
-            DistanceKm = request.DistanceKm,
+            DistanceKm = (double)request.DistanceKm,
             OrganiserId = organiserId
         };
 
@@ -211,7 +211,7 @@ public class EventsController : ControllerBase
         eventItem.EventDate = request.EventDate.Date;
         eventItem.Location = request.Location.Trim();
         eventItem.EventType = NormalizeEventType(request.EventType);
-        eventItem.DistanceKm = request.DistanceKm;
+        eventItem.DistanceKm = (double)request.DistanceKm;
 
         await _context.SaveChangesAsync();
 

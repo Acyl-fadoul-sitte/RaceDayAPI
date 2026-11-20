@@ -26,8 +26,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("CategoryId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -43,8 +42,7 @@ namespace RaceDayAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("MaxParticipants")
-                        .HasColumnType("int")
-                        .HasColumnName("MaximumParticipants");
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -61,8 +59,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("EnrolmentId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -71,6 +68,9 @@ namespace RaceDayAPI.Migrations
 
                     b.Property<DateTime>("EnrolmentDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
 
                     b.Property<int>("ParticipantId")
                         .HasColumnType("int");
@@ -83,6 +83,8 @@ namespace RaceDayAPI.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("EventId");
+
                     b.HasIndex("ParticipantId");
 
                     b.ToTable("Enrolments");
@@ -92,8 +94,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("EventId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -101,10 +102,8 @@ namespace RaceDayAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("DistanceKm")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("Distance");
+                    b.Property<double>("DistanceKm")
+                        .HasColumnType("float");
 
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("datetime2");
@@ -122,8 +121,11 @@ namespace RaceDayAPI.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("OrganiserId")
-                        .HasColumnType("int")
-                        .HasColumnName("OrganiserId");
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -136,8 +138,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ResultId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -152,8 +153,7 @@ namespace RaceDayAPI.Migrations
 
                     b.Property<string>("ResultStatus")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("Status");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -166,8 +166,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("RouteId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -180,6 +179,10 @@ namespace RaceDayAPI.Migrations
 
                     b.Property<int>("EventId")
                         .HasColumnType("int");
+
+                    b.Property<string>("RouteMapUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RouteName")
                         .IsRequired()
@@ -196,8 +199,7 @@ namespace RaceDayAPI.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("UserId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -280,6 +282,12 @@ namespace RaceDayAPI.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("RaceDayAPI.Models.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("RaceDayAPI.Models.User", "Participant")
                         .WithMany()
                         .HasForeignKey("ParticipantId")
@@ -287,6 +295,8 @@ namespace RaceDayAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+
+                    b.Navigation("Event");
 
                     b.Navigation("Participant");
                 });

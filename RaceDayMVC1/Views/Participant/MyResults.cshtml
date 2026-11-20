@@ -1,0 +1,124 @@
+﻿@model List<RaceDayMVC1.Models.ResultViewModel>
+
+@{
+    ViewData["Title"] = "My Race Results";
+}
+
+<div class="container mt-4">
+
+    <a asp-controller="Participant"
+       asp-action="Index"
+       class="btn btn-outline-primary mb-3">
+        Back to Dashboard
+    </a>
+
+    <div class="p-4 mb-4 text-white rounded-3"
+         style="background: linear-gradient(120deg, #172554, #2563eb);">
+
+        <h1 class="fw-bold">My Race Results</h1>
+
+        <p class="mb-0">
+            View your race finishing times, positions and results.
+        </p>
+
+    </div>
+
+    <h3 class="fw-bold mb-3">My Results</h3>
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="alert alert-danger">
+            @ViewBag.ErrorMessage
+        </div>
+    }
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="alert alert-info">
+            You do not have any race results available yet.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+
+            <table class="table table-bordered table-hover align-middle">
+
+                <thead class="table-dark">
+                    <tr>
+                        <th>Event Name</th>
+                        <th>Finish Time</th>
+                        <th>Position</th>
+                        <th>Result Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var result in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">
+                                @result.EventName
+                            </td>
+
+                            <td>
+                                @if (result.ResultStatus == "Finished")
+                                {
+                                    @result.FinishTime.ToString(@"hh\:mm\:ss")
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (result.Position > 0)
+                                {
+                                    @result.Position
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (result.ResultStatus == "Finished")
+                                {
+                                    <span class="badge bg-success">
+                                        Finished
+                                    </span>
+                                }
+                                else if (result.ResultStatus == "DNF")
+                                {
+                                    <span class="badge bg-danger">
+                                        Did Not Finish
+                                    </span>
+                                }
+                                else if (result.ResultStatus == "DNS")
+                                {
+                                    <span class="badge bg-warning text-dark">
+                                        Did Not Start
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        @result.ResultStatus
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+    }
+
+</div>
+
