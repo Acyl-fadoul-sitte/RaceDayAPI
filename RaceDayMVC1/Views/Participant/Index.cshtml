@@ -1,0 +1,181 @@
+﻿@model List<RaceDayMVC1.Models.EventViewModel>
+
+@{
+    ViewData["Title"] = "Participant Dashboard";
+}
+
+<div class="container mt-4">
+
+    <!-- Welcome Banner -->
+    <div class="p-4 mb-4 text-white rounded-3"
+         style="background: linear-gradient(120deg, #172554, #2563eb);">
+
+        <h1 class="fw-bold">Welcome to RaceDay!</h1>
+
+        <p class="mb-0">
+            Your next race starts with one step.
+            Discover events, manage your enrolments and track your results.
+        </p>
+
+    </div>
+
+    <h3 class="fw-bold mb-3">Participant Dashboard</h3>
+
+    <!-- Dashboard Cards -->
+    <div class="row g-4">
+
+        <!-- Upcoming Events -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">Upcoming Events</h5>
+
+                    <p class="card-text">
+                        Explore upcoming running, walking and cycling events.
+                    </p>
+
+                    <a href="#events" class="btn btn-primary">
+                        View Events
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- My Enrolments -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">My Enrolments</h5>
+
+                    <p class="card-text">
+                        View your event enrolments and check their status.
+                    </p>
+
+                    <a asp-controller="Participant"
+                       asp-action="MyEnrolments"
+                       class="btn btn-primary">
+                        My Enrolments
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- My Results -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="card-title">My Results</h5>
+
+                    <p class="card-text">
+                        View your race history and performance.
+                    </p>
+
+                    <a asp-controller="Participant"
+                       asp-action="MyResults"
+                       class="btn btn-primary">
+                        View Results
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Available Events -->
+    <div id="events" class="mt-5">
+
+        <h3 class="fw-bold mb-3">Available Race Events</h3>
+
+        @if (!string.IsNullOrEmpty(ViewBag.ErrorMessage))
+        {
+            <div class="alert alert-danger">
+                @ViewBag.ErrorMessage
+            </div>
+        }
+        else if (Model == null || !Model.Any())
+        {
+            <div class="alert alert-info">
+                No events are currently available.
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+
+                @foreach (var raceEvent in Model)
+                {
+                    <div class="col-md-6 col-lg-4">
+
+                        <div class="card shadow-sm h-100">
+
+                            <div class="card-body">
+
+                                <h5 class="card-title fw-bold">
+                                    @raceEvent.Name
+                                </h5>
+
+                                <p class="text-muted">
+                                    @raceEvent.Description
+                                </p>
+
+                                <p>
+                                    <strong>Date:</strong>
+                                    @raceEvent.EventDate.ToString("dd MMMM yyyy")
+                                </p>
+
+                                <p>
+                                    <strong>Location:</strong>
+                                    @raceEvent.Location
+                                </p>
+
+                                <p>
+                                    <strong>Type:</strong>
+                                    @raceEvent.EventType
+                                </p>
+
+                                <p>
+                                    <strong>Distance:</strong>
+                                    @raceEvent.DistanceKm km
+                                </p>
+
+                                <a asp-controller="Participant"
+                                   asp-action="Details"
+                                   asp-route-id="@raceEvent.Id"
+                                   class="btn btn-primary mt-2">
+                                    View Details
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
+
+    <!-- Closing Message -->
+    <div class="card shadow-sm mt-4 mb-4">
+
+        <div class="card-body">
+
+            <h5 class="fw-bold">Your RaceDay Journey</h5>
+
+            <p class="text-muted mb-0">
+                Get ready to participate, challenge yourself and achieve your goals!
+            </p>
+
+        </div>
+
+    </div>
+
+</div>

@@ -1,5 +1,11 @@
 
 
+
+
+
+
+
+
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +28,6 @@ public class EnrolmentsController : ControllerBase
     }
 
     // GET: api/Enrolments/my
-    // Participants can view their own enrolments.
     [HttpGet("my")]
     [Authorize(Roles = "Participant")]
     public async Task<IActionResult> GetMyEnrolments()
@@ -36,15 +41,14 @@ public class EnrolmentsController : ControllerBase
             .Select(e => new
             {
                 e.Id,
-                EventId = e.Category != null ? e.Category.EventId : 0,
+                EventId = e.Category != null
+                    ? e.Category.EventId : 0,
                 EventName = e.Category != null &&
                             e.Category.Event != null
-                    ? e.Category.Event.Name
-                    : "",
+                    ? e.Category.Event.Name : "",
                 e.CategoryId,
                 CategoryName = e.Category != null
-                    ? e.Category.Name
-                    : "",
+                    ? e.Category.Name : "",
                 e.EnrolmentDate,
                 e.Status
             })
@@ -54,7 +58,6 @@ public class EnrolmentsController : ControllerBase
     }
 
     // POST: api/Enrolments
-    // Participants can enrol in an event and category.
     [HttpPost]
     [Authorize(Roles = "Participant")]
     public async Task<IActionResult> CreateEnrolment(
@@ -64,8 +67,7 @@ public class EnrolmentsController : ControllerBase
             return Unauthorized();
 
         if (request.EventId <= 0 || request.CategoryId <= 0)
-            return BadRequest(
-                "Valid event and category IDs are required.");
+            return BadRequest("Valid event and category IDs are required.");
 
         var eventItem = await _context.Events
             .FirstOrDefaultAsync(e => e.Id == request.EventId);
@@ -74,8 +76,7 @@ public class EnrolmentsController : ControllerBase
             return NotFound("Event not found.");
 
         if (eventItem.EventDate <= DateTime.UtcNow)
-            return BadRequest(
-                "You cannot enrol in an event that has already started.");
+            return BadRequest("You cannot enrol in an event that has already started.");
 
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId);
@@ -84,19 +85,28 @@ public class EnrolmentsController : ControllerBase
             return NotFound("Category not found.");
 
         if (category.EventId != request.EventId)
-            return BadRequest(
-                "The selected category does not belong to this event.");
+            return BadRequest("The selected category does not belong to this event.");
 
-        var alreadyEnrolled = await _context.Enrolments
+        var existingEnrolment = await _context.Enrolments
+            .FirstOrDefaultAsync(e =>
+                e.ParticipantId == participantId &&
+                e.CategoryId == request.CategoryId);
+
+        if (existingEnrolment != null &&
+            existingEnrolment.Status != "Cancelled")
+        {
+            return Conflict("You are already registered for this category.");
+        }
+
+        var alreadyEnrolledInEvent = await _context.Enrolments
             .AnyAsync(e =>
                 e.ParticipantId == participantId &&
                 e.Category != null &&
                 e.Category.EventId == request.EventId &&
                 e.Status != "Cancelled");
 
-        if (alreadyEnrolled)
-            return Conflict(
-                "You are already enrolled in this event.");
+        if (alreadyEnrolledInEvent)
+            return Conflict("You are already enrolled in another category of this event.");
 
         var activeEnrolments = await _context.Enrolments
             .CountAsync(e =>
@@ -104,15 +114,33 @@ public class EnrolmentsController : ControllerBase
                 e.Status != "Cancelled");
 
         if (activeEnrolments >= category.MaxParticipants)
-            return Conflict(
-                "This category has reached its participant limit.");
+            return Conflict("This category has reached its participant limit.");
+
+        if (existingEnrolment != null)
+        {
+            existingEnrolment.Status = "Registered";
+            existingEnrolment.EnrolmentDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Your previous enrolment has been reactivated successfully.",
+                existingEnrolment.Id,
+                existingEnrolment.ParticipantId,
+                EventId = category.EventId,
+                existingEnrolment.CategoryId,
+                existingEnrolment.EnrolmentDate,
+                existingEnrolment.Status
+            });
+        }
 
         var enrolment = new Enrolment
         {
             ParticipantId = participantId,
             CategoryId = request.CategoryId,
             EnrolmentDate = DateTime.UtcNow,
-            Status = "Active"
+            Status = "Registered"
         };
 
         _context.Enrolments.Add(enrolment);
@@ -133,7 +161,7 @@ public class EnrolmentsController : ControllerBase
     }
 
     // GET: api/Enrolments/event/5
-    // Organisers can view enrolments for their own events.
+    // Organisers can view participants in their own events.
     [HttpGet("event/{eventId:int}")]
     [Authorize(Roles = "Organiser")]
     public async Task<IActionResult> GetEventEnrolments(int eventId)
@@ -151,22 +179,27 @@ public class EnrolmentsController : ControllerBase
         if (eventItem.OrganiserId != organiserId)
             return Forbid();
 
-        var enrolments = await _context.Enrolments
-            .AsNoTracking()
-            .Where(e => e.Category != null &&
-                        e.Category.EventId == eventId)
-            .Select(e => new
+        // Use explicit joins to retrieve enrolments.
+        var enrolments = await (
+            from e in _context.Enrolments.AsNoTracking()
+            join c in _context.Categories.AsNoTracking()
+                on e.CategoryId equals c.Id
+            join u in _context.Users.AsNoTracking()
+                on e.ParticipantId equals u.Id into userGroup
+            from u in userGroup.DefaultIfEmpty()
+            where c.EventId == eventId &&
+                  e.Status != "Cancelled"
+            select new
             {
                 e.Id,
                 e.ParticipantId,
-                ParticipantName = e.Participant != null
-                    ? e.Participant.FirstName + " " +
-                      e.Participant.LastName
-                    : "",
+
+                ParticipantName = u != null
+                    ? u.FirstName + " " + u.LastName
+                    : "Unknown Participant",
+
                 e.CategoryId,
-                CategoryName = e.Category != null
-                    ? e.Category.Name
-                    : "",
+                CategoryName = c.Name,
                 e.EnrolmentDate,
                 e.Status
             })
@@ -176,7 +209,6 @@ public class EnrolmentsController : ControllerBase
     }
 
     // DELETE: api/Enrolments/5
-    // Participants can cancel only their own enrolments.
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Participant")]
     public async Task<IActionResult> CancelEnrolment(int id)
@@ -193,8 +225,7 @@ public class EnrolmentsController : ControllerBase
             return NotFound("Enrolment not found.");
 
         if (enrolment.Status == "Cancelled")
-            return BadRequest(
-                "This enrolment has already been cancelled.");
+            return BadRequest("This enrolment has already been cancelled.");
 
         enrolment.Status = "Cancelled";
         await _context.SaveChangesAsync();
@@ -209,17 +240,15 @@ public class EnrolmentsController : ControllerBase
 
     private bool TryGetUserId(out int userId)
     {
-        var userIdClaim = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var userIdClaim =
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return int.TryParse(userIdClaim, out userId);
     }
 }
 
-// Data accepted when creating an enrolment.
 public class EnrolmentRequest
 {
     public int EventId { get; set; }
-
     public int CategoryId { get; set; }
 }

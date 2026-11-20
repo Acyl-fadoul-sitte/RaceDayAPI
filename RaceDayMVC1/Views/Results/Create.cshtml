@@ -1,0 +1,84 @@
+﻿@model RaceDayMVC1.Models.ResultViewModel
+
+@{
+    ViewData["Title"] = "Record Result";
+}
+
+<div class="container mt-4">
+
+    <div class="card shadow-sm">
+
+        <div class="card-header text-white"
+             style="background-color: #172554;">
+            <h3 class="mb-0">Record Participant Result</h3>
+        </div>
+
+        <div class="card-body">
+
+            <form asp-action="Create" method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" asp-for="EnrolmentId" />
+                <input type="hidden" asp-for="EventId" />
+
+                <div asp-validation-summary="All"
+                     class="text-danger mb-3">
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="FinishTime" class="form-label">
+                        Finish Time
+                    </label>
+
+                    <input asp-for="FinishTime"
+                           type="text"
+                           class="form-control"
+                           placeholder="01:25:30" />
+
+                    <small class="text-muted">
+                        Enter time as hours:minutes:seconds.
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Position" class="form-label">
+                        Finishing Position
+                    </label>
+
+                    <input asp-for="Position"
+                           type="number"
+                           min="1"
+                           class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ResultStatus" class="form-label">
+                        Result Status
+                    </label>
+
+                    <select asp-for="ResultStatus" class="form-select">
+                        <option value="Finished">Finished</option>
+                        <option value="DNF">DNF - Did Not Finish</option>
+                        <option value="DNS">DNS - Did Not Start</option>
+                    </select>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        Save Result
+                    </button>
+
+                    <a asp-action="EventResults"
+                       asp-route-eventId="@Model.EventId"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>

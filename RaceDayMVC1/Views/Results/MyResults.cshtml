@@ -1,0 +1,66 @@
+﻿@model List<RaceDayMVC1.Models.ResultViewModel>
+
+@{
+    ViewData["Title"] = "My Results";
+}
+
+<div class="container mt-4">
+
+    <h2 class="fw-bold">My Race Results</h2>
+    <p class="text-muted">
+        View your race finishing times and positions.
+    </p>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">
+            @ViewBag.Error
+        </div>
+    }
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center p-5">
+                <h5>No Results Available</h5>
+                <p class="text-muted">
+                    Your race results will appear here once they are published.
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Event</th>
+                                <th>Finish Time</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var result in Model)
+                            {
+                                <tr>
+                                    <td>@result.EventName</td>
+                                    <td>@result.FinishTime</td>
+                                    <td>@result.Position</td>
+                                    <td>@result.ResultStatus</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    }
+
+</div>

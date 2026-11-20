@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../RaceDayMVC1/RaceDayMVC1.csproj" />
+  <Project Path="RaceDayAPI.csproj" />
+</Solution>
