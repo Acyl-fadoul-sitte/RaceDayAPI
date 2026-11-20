@@ -414,3 +414,67 @@ The current API project includes authentication, role-based access control, even
 The latest local test run recorded 22 passing tests with no failures, and the pushed code received a successful GitHub Actions workflow run.
 
 Remaining submission tasks include verifying the final README evidence, checking endpoint documentation and assignment requirements, confirming the required Git commit history, and adding the completed demonstration video link.
+
+## 17. ASP.NET Core MVC Application
+
+The RaceDay MVC application provides a user-friendly interface that communicates with the RaceDay RESTful API.
+
+The application supports two user roles: Organiser and Participant.
+
+### Organiser functionality
+- Organiser login and dashboard.
+- Create and manage sporting events.
+- Manage event categories.
+- View participant enrolments.
+- Record and update race results.
+
+### Participant functionality
+- Participant registration and login.
+- Browse available sporting events.
+- View event categories.
+- Enrol in events.
+- View enrolment status.
+- View personal race results.
+
+The MVC application uses the API for its data operations and session-based authentication to control access to protected pages.
+
+## 18. Docker Containerisation
+
+Docker is used to containerise the RaceDay API and MVC applications.
+
+The repository includes:
+- `Dockerfile` for the API.
+- `RaceDayMVC1/Dockerfile` for the MVC application.
+- `docker-compose.yml` to run both applications.
+
+### Running the applications with Docker
+
+1. Install Docker Desktop.
+2. Configure the required environment variables in a local `.env` file.
+3. Open PowerShell in the repository root.
+4. Run:
+
+```powershell
+docker compose up -d --build
+```
+
+### Application addresses
+
+- API: http://localhost:5142
+- MVC: http://localhost:5288
+
+To stop the containers:
+
+```powershell
+docker compose down
+```
+
+**Security:** Never upload the `.env` file or private database credentials to GitHub.
+
+## 19. Azure Blob Storage
+
+Azure Blob Storage integration for event banner images remains an outstanding implementation requirement. It should not be considered completed until it has been implemented and tested.
+
+## 20. Final Demonstration Video
+
+YouTube demonstration link: To be added after recording and uploading the final demonstration video.
